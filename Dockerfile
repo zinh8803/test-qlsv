@@ -1,34 +1,34 @@
-# Sử dụng PHP chính thức có sẵn composer
+# 1. Sử dụng PHP chính thức + Composer
 FROM php:8.2-fpm
 
-# Cài đặt các extension cần thiết cho Laravel
+# 2. Cài đặt extension cần thiết cho Laravel
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
+    git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev supervisor \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Cài Composer
+# 3. Cài Composer (copy từ image composer chính thức)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Thiết lập thư mục làm việc
+# 4. Tạo user thường (bảo mật hơn root)
+RUN useradd -ms /bin/bash app
+
+# 5. Tạo thư mục và phân quyền cho user app
 WORKDIR /var/www
-
-# Copy tất cả file vào container
 COPY . .
+RUN composer install --no-dev --optimize-autoloader \
+ && chown -R app:app /var/www \
+ && chmod -R 775 storage bootstrap/cache \
+ && mkdir -p storage/logs \
+ && chown -R app:app storage bootstrap/cache
 
-# Cài đặt dependencies
-RUN composer install --no-dev --optimize-autoloader
+# 6. Copy cấu hình supervisor
+COPY ./supervisord.conf /etc/supervisord.conf
 
-# Cấp quyền cho storage & bootstrap
-RUN chmod -R 777 storage bootstrap/cache
+# 7. Chạy container bằng user app (không phải root)
+USER app
 
-# Cài đặt supervisor để quản lý process
-RUN apt-get update && apt-get install -y supervisor
+# 8. Mở port (Render sẽ tự map, ta để port 0.0.0.0)
+EXPOSE 8000
 
-# Copy file cấu hình supervisor cho Laravel
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Expose cổng 10000 (Render đặt biến PORT=10000 cho dịch vụ web Docker)
-EXPOSE 10000
-
-# CMD sử dụng supervisor để chạy Laravel
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# 9. CMD khởi động Supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
