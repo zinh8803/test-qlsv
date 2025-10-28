@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y supervisor
 # Copy file cấu hình supervisor cho Laravel
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose cổng 8000 để Render có thể truy cập
-EXPOSE 8000
+# Expose cổng 10000 (Render đặt biến PORT=10000 cho dịch vụ web Docker)
+EXPOSE 10000
 
 # CMD sử dụng supervisor để chạy Laravel
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
